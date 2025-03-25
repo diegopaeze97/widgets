@@ -1,9 +1,9 @@
 (function() {
     // Definición de estilos personalizados para el widget
     const style = document.createElement('style');
-    style.innerHTML = ` 
+    style.innerHTML =  
         /* Estilos generales del widget */
-        .widget-container {
+        `.widget-container {
             max-width: 720px;
             margin: 0 auto;
             padding: 16px;
@@ -105,24 +105,22 @@
             font-size: 0.875rem;
             display: none;
         }
-        /* Clase auxiliar para ocultar elementos */
         .hidden {
             display: none;
         }
         @media screen and (max-width: 1024px) {
-            /* Puedes agregar ajustes para tablet */
+            /* Ajustes para tablet */
         }
         @media screen and (max-width: 487px) {
-            /* Puedes agregar ajustes para móvil */
-        }
-    `;
+            /* Ajustes para móvil */
+        }`;
     document.head.appendChild(style);
 
     // Insertamos el widget en todos los contenedores con la clase "my-widget"
     const containers = document.querySelectorAll('.my-widget');
     containers.forEach(container => {
-        container.innerHTML = `
-            <div class="widget-container">
+        container.innerHTML = 
+            `<div class="widget-container">
                 <h2 class="widget-title">Fotos (requerido)</h2>
                 <div class="widget-inner">
                     <!-- Área de subida -->
@@ -137,8 +135,7 @@
                 <!-- Botón para subir imágenes -->
                 <button id="upload-btn" class="widget-upload-btn">Subir imágenes</button>
                 <p id="upload-status" class="widget-upload-status">Imágenes subidas correctamente</p>
-            </div>
-        `;
+            </div>`;
     });
 
     // Referencias a elementos del widget
@@ -193,9 +190,7 @@
                 return;
             }
 
-            // Aquí podrías agregar validación de relación de aspecto si lo requieres,
-            // por ejemplo: if (!ALLOWED_ASPECT_RATIOS.includes(parseFloat(aspectRatio.toFixed(2)))) { ... }
-
+            // Aquí podrías agregar validación de relación de aspecto si lo requieres
             addImage(file, src);
         };
     }
@@ -208,16 +203,16 @@
         const imgContainer = document.createElement("div");
         imgContainer.classList.add("widget-image-container");
 
-        imgContainer.innerHTML = `
-            <img src="${src}" class="widget-img">
-            <button class="widget-remove-btn">❌</button>
-            <button class="widget-select-cover">PORTADA</button>
-        `;
+        imgContainer.innerHTML = 
+            `<img src="${src}" class="widget-img">
+             <button class="widget-remove-btn">❌</button>
+             <button class="widget-select-cover">PORTADA</button>`;
 
         imagePreview.appendChild(imgContainer);
         // Guardamos tanto el contenedor como el objeto file
         images.push({ container: imgContainer, file: file });
 
+        // Actualizamos la portada según el orden visual (DOM)
         updateCover();
 
         // Eliminar imagen
@@ -228,8 +223,10 @@
             updateCover();
         });
 
-        // Seleccionar imagen de portada
+        // Seleccionar imagen de portada manualmente
         imgContainer.addEventListener("click", () => {
+            // Si se selecciona manualmente, se muestra el botón solo en este contenedor,
+            // pero al reconstruir la portada se respeta el orden visual
             images.forEach(img => {
                 img.container.querySelector(".widget-select-cover").style.display = "none";
             });
@@ -237,11 +234,18 @@
         });
     }
 
+    // Actualiza la imagen de portada: la primera del contenedor será la portada
     function updateCover() {
-        if (images.length > 0) {
-            // La primera imagen se marca como portada por defecto
-            images[0].container.querySelector(".widget-select-cover").style.display = "block";
-        }
+        const containers = imagePreview.querySelectorAll('.widget-image-container');
+        containers.forEach((container, index) => {
+            const coverBtn = container.querySelector(".widget-select-cover");
+            // La primera imagen (orden DOM) se marca como portada
+            if (index === 0) {
+                coverBtn.style.display = "block";
+            } else {
+                coverBtn.style.display = "none";
+            }
+        });
     }
 
     function showError(message) {
@@ -253,14 +257,24 @@
     // Inicializamos Sortable para permitir arrastrar y reordenar las imágenes
     new Sortable(imagePreview, {
         animation: 150,
-        ghostClass: "opacity-50"
+        ghostClass: "opacity-50",
+        onEnd: function () {
+            // Actualizamos la portada después de un reordenamiento
+            updateCover();
+        }
     });
 
     // Botón de subir imágenes: envío al servidor mediante fetch
     uploadBtn.addEventListener("click", async () => {
         const formData = new FormData();
-        images.forEach((img, index) => {
-            formData.append(`image_${index + 1}`, img.file);
+        // Se recorre el contenedor en el orden actual (de izquierda a derecha)
+        const containers = imagePreview.querySelectorAll('.widget-image-container');
+        containers.forEach((container, index) => {
+            const imageObj = images.find(img => img.container === container);
+            if (imageObj) {
+                // Se usa el orden visual para asignar nombres: image_1, image_2, etc.
+                formData.append(`image_${index + 1}`, imageObj.file);
+            }
         });
 
         try {
@@ -286,7 +300,6 @@
     });
 
     // Hacemos visible el botón de subir imágenes cuando se agrega la primera imagen
-    // (esto se puede ajustar según la lógica de tu aplicación)
     const observer = new MutationObserver(() => {
         if (images.length > 0) {
             uploadBtn.style.display = "block";
@@ -296,4 +309,5 @@
     });
     observer.observe(imagePreview, { childList: true });
 })();
+
 
