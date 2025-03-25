@@ -1,5 +1,3 @@
-import Sortable from "sortablejs";
-
 (function() {
     // Definición de estilos personalizados para el widget
     const style = document.createElement('style');
