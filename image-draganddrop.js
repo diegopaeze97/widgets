@@ -222,16 +222,6 @@
             images = images.filter(img => img.container !== imgContainer);
             updateCover();
         });
-
-        // Seleccionar imagen de portada manualmente
-        imgContainer.addEventListener("click", () => {
-            // Si se selecciona manualmente, se muestra el botón solo en este contenedor,
-            // pero al reconstruir la portada se respeta el orden visual
-            images.forEach(img => {
-                img.container.querySelector(".widget-select-cover").style.display = "none";
-            });
-            imgContainer.querySelector(".widget-select-cover").style.display = "block";
-        });
     }
 
     // Actualiza la imagen de portada: la primera del contenedor será la portada
