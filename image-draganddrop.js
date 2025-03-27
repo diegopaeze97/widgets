@@ -7,7 +7,6 @@
             max-width: 720px;
             margin: 0 auto;
             padding: 16px;
-            font-family: sans-serif;
         }
         .widget-title {
             font-size: 1.125rem;
@@ -19,21 +18,25 @@
             display: flex;
             gap: 16px;
             margin-top: 16px;
+            flex-direction: column;
         }
+            
         .widget-drop-area {
-            width: 128px;
-            height: 128px;
+            width: 100%;
+            height: 150px;
             display: flex;
             align-items: center;
             justify-content: center;
-            border: 2px dashed #888;
-            border-radius: 8px;
-            background-color: #fff;
+            text-align: center;
+            color: #999;
+            font-size: 18px;
             cursor: pointer;
-            transition: background-color 0.3s;
-        }
-        .widget-drop-area:hover {
             background-color: #f9f9f9;
+            transition: background 0.3s;
+        }
+
+        widget-drop-area.dragover {
+            background: rgba(0, 0, 0, 0.1);
         }
         .widget-file-input {
             display: none;
@@ -49,8 +52,8 @@
         }
         .widget-image-container {
             position: relative;
-            width: 112px;
-            height: 112px;
+            width: 16.66%;
+            height: 180px;
             background-color: #fff;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -90,8 +93,9 @@
             display: none;
         }
         .widget-upload-btn {
-            margin-top: 16px;
-            background-color: blue;
+            width: 40%;
+            margin: 16px auto;
+            background-color: #333;
             color: white;
             padding: 8px 16px;
             border-radius: 4px;
@@ -121,12 +125,11 @@
     containers.forEach(container => {
         container.innerHTML = 
             `<div class="widget-container">
-                <h2 class="widget-title">Fotos (requerido)</h2>
                 <div class="widget-inner">
                     <!-- Área de subida -->
                     <div id="drop-area" class="widget-drop-area">
-                        <input type="file" id="file-input" class="widget-file-input" accept="image/*" multiple>
-                        <label for="file-input" class="widget-label">Seleccionar</label>
+                        Seleccionar o arrastra imágenes aquí
+                        <input type="file" id="file-input" class="widget-file-input" accept="image/*" multiple style="display: none;">
                     </div>
                     <!-- Contenedor de imágenes -->
                     <div id="image-preview" class="widget-image-preview"></div>
@@ -139,14 +142,99 @@
     });
 
     // Referencias a elementos del widget
+    const dropArea = document.getElementById("drop-area");
     const fileInput = document.getElementById("file-input");
     const imagePreview = document.getElementById("image-preview");
     const errorMsg = document.getElementById("error-msg");
     const uploadBtn = document.getElementById("upload-btn");
     const uploadStatus = document.getElementById("upload-status");
 
+    dropArea.addEventListener("click", () => fileInput.click());
+
+    // Manejar el evento de arrastrar sobre el área
+    dropArea.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        dropArea.classList.add("dragover");
+    });
+
+    dropArea.addEventListener("dragleave", () => {
+        dropArea.classList.remove("dragover");
+    });
+
+    dropArea.addEventListener("drop", (e) => {
+        e.preventDefault();
+        dropArea.classList.remove("dragover");
+
+        const files = e.dataTransfer.files;
+        handleFiles(files);
+    });
+
     // Array para almacenar objetos { container, file } de cada imagen
     let images = [];
+
+    async function fetchImages() {
+        try {
+            const response = await fetch('https://salazar.es-guay.com/user/preview_user_gallery', { method: 'GET' });
+            const data = await response.json();
+            
+            if (data.images) {
+                data.images.forEach(imgUrl => addImageFromBackend(imgUrl));
+            } else {
+                console.log(data.message);
+            }
+        } catch (error) {
+            console.error('Error al obtener imágenes:', error);
+        }
+    }
+
+    function handleFiles(files) {
+        console.log("Procesando archivos:", files);
+    
+        if (files.length + document.querySelectorAll(".widget-image-container").length > 6) {
+            alert("Solo se permiten hasta 6 imágenes.");
+            return;
+        }
+    
+        for (const file of files) {
+            // Verificar si el archivo es una imagen
+            if (!file.type.startsWith("image/")) {
+                alert(`"${file.name}" no es una imagen válida.`);
+                continue; // Saltar este archivo y continuar con el siguiente
+            }
+    
+            console.log("Leyendo archivo:", file.name);
+    
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                console.log("Imagen leída correctamente:", file.name);
+                const imgUrl = e.target.result;
+                validateAndAddImage(file, imgUrl);
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+    
+
+    function addImageFromBackend(src) {
+        const imgContainer = document.createElement("div");
+        imgContainer.classList.add("widget-image-container");
+        imgContainer.innerHTML = 
+            `<img src="${src}" class="widget-img">
+             <button class="widget-remove-btn">❌</button>
+             <button class="widget-select-cover">PORTADA</button>`;
+        document.getElementById("image-preview").appendChild(imgContainer);
+        images.push({ container: imgContainer, file: src });
+
+        // Eliminar imagen
+        imgContainer.querySelector(".widget-remove-btn").addEventListener("click", (e) => {
+            e.stopPropagation(); // Evita que se active la selección de portada
+            imgContainer.remove();
+            images = images.filter(img => img.container !== imgContainer);
+            updateCover();
+        });
+    }
+
+    document.addEventListener("DOMContentLoaded", fetchImages);
 
     // REGLAS DE VALIDACIÓN
     const MAX_IMAGES = 6;
@@ -260,18 +348,19 @@
         // Se recorre el contenedor en el orden actual (de izquierda a derecha)
         const containers = imagePreview.querySelectorAll('.widget-image-container');
         containers.forEach((container, index) => {
+            
             const imageObj = images.find(img => img.container === container);
             if (imageObj) {
                 // Se usa el orden visual para asignar nombres: image_1, image_2, etc.
                 formData.append(`image_${index + 1}`, imageObj.file);
-            }
+            } 
         });
 
         try {
             uploadBtn.textContent = "Subiendo...";
             uploadBtn.disabled = true;
 
-            const response = await fetch("https://tu-servidor.com/api/upload", {
+            const response = await fetch("https://salazar.es-guay.com/user/update_user_gallery", {
                 method: "POST",
                 body: formData
             });
