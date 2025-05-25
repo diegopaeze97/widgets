@@ -6,7 +6,7 @@
         `.widget-container {
             max-width: 720px;
             margin: 0 auto;
-            padding: 16px;
+            padding: 0;
         }
         .widget-title {
             font-size: 1.125rem;
@@ -31,8 +31,9 @@
             color: #999;
             font-size: 18px;
             cursor: pointer;
-            background-color: #f9f9f9;
+            background-color: transparent;
             transition: background 0.3s;
+            border: 1px solid #000;
         }
 
         widget-drop-area.dragover {
@@ -59,6 +60,7 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             overflow: hidden;
         }
+            749576
         .widget-image-container img {
             width: 100%;
             height: 100%;
@@ -95,10 +97,9 @@
         .widget-upload-btn {
             width: 40%;
             margin: 16px auto;
-            background-color: #333;
+            background-color: #749576;
             color: white;
-            padding: 8px 16px;
-            border-radius: 4px;
+            padding: 12px 16px;
             cursor: pointer;
             border: none;
             display: none;
@@ -128,7 +129,7 @@
                 <div class="widget-inner">
                     <!-- Área de subida -->
                     <div id="drop-area" class="widget-drop-area">
-                        Seleccionar o arrastra imágenes aquí
+                        Drag or Drop Images here
                         <input type="file" id="file-input" class="widget-file-input" accept="image/*" multiple style="display: none;">
                     </div>
                     <!-- Contenedor de imágenes -->
@@ -136,7 +137,7 @@
                 </div>
                 <p id="error-msg" class="widget-error"></p>
                 <!-- Botón para subir imágenes -->
-                <button id="upload-btn" class="widget-upload-btn">Subir imágenes</button>
+                <button id="upload-btn" class="widget-upload-btn">Upload Images</button>
                 <p id="upload-status" class="widget-upload-status">Imágenes subidas correctamente</p>
             </div>`;
     });
