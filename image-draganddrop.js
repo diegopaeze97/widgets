@@ -3,7 +3,11 @@
     const style = document.createElement('style');
     style.innerHTML =  
         /* Estilos generales del widget */
-        `.widget-container {
+        `
+        body {
+            font-family: "Azeret Mono", monospace;
+        }
+        .widget-container {
             max-width: 720px;
             margin: 0 auto;
             padding: 0;
@@ -94,6 +98,7 @@
             display: none;
         }
         .widget-upload-btn {
+            font-family: "Azeret Mono", monospace;
             width: 40%;
             margin: 16px auto;
             background-color: #749576;
