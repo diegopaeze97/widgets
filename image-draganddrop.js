@@ -129,7 +129,7 @@
     const containers = document.querySelectorAll('.my-widget');
     containers.forEach(container => {
         container.innerHTML = 
-            `<div class="widget-container">
+            `<div class="widget-container" id=myWixGalleryWidgetIframe">
                 <div class="widget-inner">
                     <!-- Área de subida -->
                     <div id="drop-area" class="widget-drop-area">
@@ -180,17 +180,59 @@
     async function fetchImages() {
         try {
             const response = await fetch('https://salazar.es-guay.com/user/preview_user_gallery', { method: 'GET' });
+            
+            // Verifica si la respuesta HTTP fue exitosa (código 2xx)
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
             const data = await response.json();
             
-            if (data.images) {
+            if (data.images && data.images.length > 0) { // Verifica si hay imágenes y la longitud > 0
                 data.images.forEach(imgUrl => addImageFromBackend(imgUrl));
+                // Log para depuración
+                console.log('Imágenes cargadas y añadidas al DOM.');
+                
+                // *** AVISO A LA VENTANA PADRE: WIDGET LISTO CON IMÁGENES ***
+                if (window.parent) {
+                    window.parent.postMessage({
+                        type: 'WIDGET_GALLERY_READY', // Tipo de mensaje más específico
+                        status: 'success',
+                        hasImages: true,
+                        widgetId: 'myWixGalleryWidget' // ID único para tu widget
+                    }, '*'); // Reemplaza '*' con el dominio de Wix Studio si lo conoces para más seguridad
+                }
+
             } else {
-                console.log(data.message);
+                // Caso donde no hay imágenes o solo un mensaje
+                console.log(data.message || 'No se encontraron imágenes.');
+                
+                // *** AVISO A LA VENTANA PADRE: WIDGET LISTO PERO SIN IMÁGENES ***
+                if (window.parent) {
+                    window.parent.postMessage({
+                        type: 'WIDGET_GALLERY_READY', // Mismo tipo, diferente estado
+                        status: 'success',
+                        hasImages: false,
+                        message: data.message || 'No images to display.',
+                        widgetId: 'myWixGalleryWidget'
+                    }, '*');
+                }
             }
         } catch (error) {
             console.error('Error al obtener imágenes:', error);
+            
+            // *** AVISO A LA VENTANA PADRE: WIDGET EN ESTADO DE ERROR ***
+            if (window.parent) {
+                window.parent.postMessage({
+                    type: 'WIDGET_GALLERY_ERROR', // Un tipo de mensaje para errores
+                    status: 'error',
+                    message: error.message,
+                    widgetId: 'myWixGalleryWidget'
+                }, '*');
+            }
         }
     }
+
 
     function handleFiles(files) {
         console.log("Procesando archivos:", files);
@@ -362,7 +404,7 @@
         });
 
         try {
-            uploadBtn.textContent = "Subiendo...";
+            uploadBtn.textContent = "Uploading...";
             uploadBtn.disabled = true;
 
             const response = await fetch("https://salazar.es-guay.com/user/update_user_gallery", {
@@ -372,13 +414,13 @@
 
             if (!response.ok) throw new Error("Error en la subida");
 
-            uploadStatus.textContent = "Imágenes subidas correctamente";
+            uploadStatus.textContent = "Images uploaded successfully!";
             uploadStatus.style.display = "block";
-            uploadBtn.textContent = "Subir imágenes";
+            uploadBtn.textContent = "Upload Images";
             uploadBtn.disabled = false;
         } catch (error) {
             showError("Error al subir imágenes. Inténtalo de nuevo.");
-            uploadBtn.textContent = "Subir imágenes";
+            uploadBtn.textContent = "Upload Images";
             uploadBtn.disabled = false;
         }
     });

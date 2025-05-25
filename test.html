@@ -1,13 +1,32 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Subida de Imágenes</title>
+    <title>Prueba de Widget de Galería</title>
 </head>
 <body>
+    <h1>Mi Página de Prueba Local</h1>
+
+    <div class="my-widget" data-id="gallery1"></div>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.6/Sortable.min.js" integrity="sha512-csIng5zcB+XpulRUa+ev1zKo7zRNGpEaVfNB9On1no9KYTEY/rLGAEEpvgdw6nim1WdTuihZY1eqZ31K7/fZjw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    <script src="C:\Users\asus\widgets\image-draganddrop.js" type="text/javascript" async></script>
-    <div class="my-widget" data-id="12345" data-mode="dark" style="display: block;"></div>
+    
+    <script src="image-draganddrop.js"></script>
+
+    <script>
+        // Este script de escucha SÓLO ES RELEVANTE si este HTML se carga dentro de un iframe
+        // y estás intentando que reciba mensajes del widget que está dentro de ESTE HTML.
+        // En tu entorno de prueba local, si abres index.html directamente,
+        // no habrá un "parent" que envíe mensajes a este "window".
+        // Lo dejé aquí como un recordatorio, pero para ver los postMessage funcionar
+        // necesitas simular el iframe.
+        window.addEventListener('message', function(event) {
+            console.log('Mensaje recibido en el entorno de prueba. (Solo relevante si este HTML está en un iframe)');
+            console.log(event.data);
+            // Aquí no se manipulará un iframe padre, sino quizás elementos de esta misma página
+            // si tuvieras elementos de "carga" o "estado" en este HTML para probar el widget directamente.
+        });
+    </script>
 </body>
 </html>
