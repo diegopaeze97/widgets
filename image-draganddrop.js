@@ -180,56 +180,34 @@
     async function fetchImages() {
         try {
             const response = await fetch('https://salazar.es-guay.com/user/preview_user_gallery', { method: 'GET' });
-            
-            // Verifica si la respuesta HTTP fue exitosa (código 2xx)
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-
             const data = await response.json();
-            
-            if (data.images && data.images.length > 0) { // Verifica si hay imágenes y la longitud > 0
-                data.images.forEach(imgUrl => addImageFromBackend(imgUrl));
-                // Log para depuración
-                console.log('Imágenes cargadas y añadidas al DOM.');
+
+            if (data.images && data.images.length > 0) {
+                const imageLoadPromises = [];
+                data.images.forEach(imgUrl => {
+                    // addImageFromBackend ahora devolverá una promesa que se resuelve cuando la imagen carga
+                    imageLoadPromises.push(addImageFromBackend(imgUrl));
+                });
+
+                // Espera a que todas las imágenes se hayan cargado antes de notificar a Wix
+                await Promise.all(imageLoadPromises);
+                console.log('Todas las imágenes cargadas y añadidas al DOM.');
                 
-                // *** AVISO A LA VENTANA PADRE: WIDGET LISTO CON IMÁGENES ***
-                if (window.parent) {
-                    window.parent.postMessage({
-                        type: 'WIDGET_GALLERY_READY', // Tipo de mensaje más específico
-                        status: 'success',
-                        hasImages: true,
-                        widgetId: 'myWixGalleryWidget' // ID único para tu widget
-                    }, '*'); // Reemplaza '*' con el dominio de Wix Studio si lo conoces para más seguridad
-                }
+                // *** AVISO A LA VENTANA PADRE: WIDGET LISTO Y CON CONTENIDO ***
+                sendWidgetReadyMessage(true);
 
             } else {
-                // Caso donde no hay imágenes o solo un mensaje
                 console.log(data.message || 'No se encontraron imágenes.');
-                
                 // *** AVISO A LA VENTANA PADRE: WIDGET LISTO PERO SIN IMÁGENES ***
-                if (window.parent) {
-                    window.parent.postMessage({
-                        type: 'WIDGET_GALLERY_READY', // Mismo tipo, diferente estado
-                        status: 'success',
-                        hasImages: false,
-                        message: data.message || 'No images to display.',
-                        widgetId: 'myWixGalleryWidget'
-                    }, '*');
-                }
+                sendWidgetReadyMessage(false);
             }
         } catch (error) {
             console.error('Error al obtener imágenes:', error);
-            
             // *** AVISO A LA VENTANA PADRE: WIDGET EN ESTADO DE ERROR ***
-            if (window.parent) {
-                window.parent.postMessage({
-                    type: 'WIDGET_GALLERY_ERROR', // Un tipo de mensaje para errores
-                    status: 'error',
-                    message: error.message,
-                    widgetId: 'myWixGalleryWidget'
-                }, '*');
-            }
+            sendWidgetErrorMessage(error.message);
         }
     }
 
@@ -262,25 +240,86 @@
     }
     
 
+    // Modifica addImageFromBackend para devolver una Promise
     function addImageFromBackend(src) {
-        const imgContainer = document.createElement("div");
-        imgContainer.classList.add("widget-image-container");
-        imgContainer.innerHTML = 
-            `<img src="${src}" class="widget-img">
-             <button class="widget-remove-btn">❌</button>
-             <button class="widget-select-cover">PORTADA</button>`;
-        document.getElementById("image-preview").appendChild(imgContainer);
-        images.push({ container: imgContainer, file: src });
+        return new Promise((resolve, reject) => {
+            const imgContainer = document.createElement("div");
+            imgContainer.classList.add("widget-image-container");
 
-        // Eliminar imagen
-        imgContainer.querySelector(".widget-remove-btn").addEventListener("click", (e) => {
-            e.stopPropagation(); // Evita que se active la selección de portada
-            imgContainer.remove();
-            images = images.filter(img => img.container !== imgContainer);
-            updateCover();
+            // Crea el elemento img y adjunta un evento onload/onerror
+            const imgElement = document.createElement("img");
+            imgElement.src = src;
+            imgElement.classList.add("widget-img");
+
+            imgElement.onload = () => {
+                imgContainer.appendChild(imgElement); // Añade la imagen al contenedor
+                imgContainer.innerHTML += `<button class="widget-remove-btn">❌</button><button class="widget-select-cover">PORTADA</button>`;
+                document.getElementById("image-preview").appendChild(imgContainer);
+                images.push({ container: imgContainer, file: src }); // Asegúrate de que `images` sigue siendo el array principal
+                updateCover(); // Esto es importante para que la portada se asigne correctamente
+
+                // Eliminar imagen (el resto de tu lógica de eliminación)
+                imgContainer.querySelector(".widget-remove-btn").addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    imgContainer.remove();
+                    images = images.filter(img => img.container !== imgContainer);
+                    updateCover();
+                });
+                resolve(); // Resuelve la promesa cuando la imagen ha cargado y se ha añadido
+            };
+
+            imgElement.onerror = (e) => {
+                console.error('Error al cargar la imagen del backend:', src, e);
+                imgContainer.remove(); // O manejar de otra forma (e.g., mostrar placeholder)
+                reject(new Error(`Failed to load image: ${src}`)); // Rechaza la promesa en caso de error
+            };
+
+            // Si la imagen ya está en caché, onload puede no dispararse, asegúrate de añadirla al DOM
+            // y resolver la promesa si el browser ya la tiene.
+            // Esto es un edge case, pero si la imagen ya está cargada en caché, img.onload puede que no se dispare
+            // de la forma esperada. Para la mayoría de los casos, la estrategia onload es robusta.
+            // Puedes agregar una comprobación imgElement.complete
+            if (imgElement.complete && imgElement.naturalHeight !== 0) {
+                imgContainer.appendChild(imgElement);
+                imgContainer.innerHTML += `<button class="widget-remove-btn">❌</button><button class="widget-select-cover">PORTADA</button>`;
+                document.getElementById("image-preview").appendChild(imgContainer);
+                images.push({ container: imgContainer, file: src });
+                updateCover();
+                resolve();
+            }
         });
     }
 
+
+    // Función unificada para enviar mensajes de 'ready'
+    function sendWidgetReadyMessage(hasImages) {
+        if (window.parent) {
+            // Calcula la altura actual del contenido del iframe
+            const currentHeight = document.documentElement.scrollHeight || document.body.scrollHeight;
+            window.parent.postMessage({
+                type: 'WIDGET_GALLERY_READY',
+                status: 'success',
+                hasImages: hasImages,
+                widgetId: 'myWixGalleryWidget',
+                // Envía la altura actual del iframe
+                height: currentHeight
+            }, '*'); 
+            console.log(`Mensaje WIDGET_GALLERY_READY enviado. Altura: ${currentHeight}px`);
+        }
+    }
+
+    // Función para enviar mensajes de 'error'
+    function sendWidgetErrorMessage(errorMessage) {
+        if (window.parent) {
+            window.parent.postMessage({
+                type: 'WIDGET_GALLERY_ERROR',
+                status: 'error',
+                message: errorMessage,
+                widgetId: 'myWixGalleryWidget'
+            }, '*');
+            console.error('Mensaje WIDGET_GALLERY_ERROR enviado:', errorMessage);
+        }
+    }
     document.addEventListener("DOMContentLoaded", fetchImages);
 
     // REGLAS DE VALIDACIÓN
